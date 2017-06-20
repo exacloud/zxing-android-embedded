@@ -3,6 +3,7 @@
 
     <string name="app_name">ZXing Sample</string>
     <string name="scan_barcode">Scan Barcode</string>
+    <string name="kujiale_barcode">Kujiale Barcode</string>
     <string name="any_orientation">1D Any Orientation</string>
     <string name="scan_from_fragment">Scan from fragment</string>
     <string name="front_camera">Front Camera</string>

@@ -18,6 +18,9 @@
             </intent-filter>
         </activity>
         <activity android:name=".ContinuousCaptureActivity"></activity>
+        <activity android:name=".KujialeBarcodeScanActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:screenOrientation="portrait"/>
         <activity
             android:name=".AnyOrientationCaptureActivity"
             android:screenOrientation="fullSensor"

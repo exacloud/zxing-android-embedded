@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.journeyapps.barcodescanner;
 
 import android.annotation.SuppressLint;
@@ -22,8 +21,11 @@ import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
+import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.View;
 
@@ -41,28 +43,32 @@ import java.util.List;
  */
 public class ViewfinderView extends View {
     protected static final String TAG = ViewfinderView.class.getSimpleName();
-
+    /**
+     * default laser scan duration, from top to bottom, milliseconds
+     */
+    public static final int DEFAULT_LASER_DURATION = 4000;
     protected static final int[] SCANNER_ALPHA = {0, 64, 128, 192, 255, 192, 128, 64};
-    protected static final long ANIMATION_DELAY = 80L;
+    protected static final long ANIMATION_DELAY = 10L;
     protected static final int CURRENT_POINT_OPACITY = 0xA0;
     protected static final int MAX_RESULT_POINTS = 20;
     protected static final int POINT_SIZE = 6;
-
     protected final Paint paint;
     protected Bitmap resultBitmap;
+    protected Drawable laserDrawable;
     protected final int maskColor;
     protected final int resultColor;
-    protected final int laserColor;
     protected final int resultPointColor;
     protected int scannerAlpha;
     protected List<ResultPoint> possibleResultPoints;
     protected List<ResultPoint> lastPossibleResultPoints;
     protected CameraPreview cameraPreview;
-
     // Cache the framingRect and previewFramingRect, so that we can still draw it after the preview
     // stopped.
     protected Rect framingRect;
     protected Rect previewFramingRect;
+    private long mStartTime = -1;
+    private long mDuration = DEFAULT_LASER_DURATION;
+    private boolean mIsLaserAnimationEnabled = true;
 
     // This constructor is used when the class is built from an XML resource.
     public ViewfinderView(Context context, AttributeSet attrs) {
@@ -74,16 +80,20 @@ public class ViewfinderView extends View {
         Resources resources = getResources();
 
         // Get setted attributes on view
-        TypedArray attributes = getContext().obtainStyledAttributes(attrs, R.styleable.zxing_finder);
+        TypedArray attributes = getContext().obtainStyledAttributes(attrs, R.styleable
+                .zxing_finder);
 
         this.maskColor = attributes.getColor(R.styleable.zxing_finder_zxing_viewfinder_mask,
                 resources.getColor(R.color.zxing_viewfinder_mask));
         this.resultColor = attributes.getColor(R.styleable.zxing_finder_zxing_result_view,
                 resources.getColor(R.color.zxing_result_view));
-        this.laserColor = attributes.getColor(R.styleable.zxing_finder_zxing_viewfinder_laser,
-                resources.getColor(R.color.zxing_viewfinder_laser));
-        this.resultPointColor = attributes.getColor(R.styleable.zxing_finder_zxing_possible_result_points,
+        this.laserDrawable = attributes.getDrawable(R.styleable
+                .zxing_finder_zxing_viewfinder_laser);
+        this.resultPointColor = attributes.getColor(R.styleable
+                        .zxing_finder_zxing_possible_result_points,
                 resources.getColor(R.color.zxing_possible_result_points));
+        this.mDuration = attributes.getInteger(R.styleable
+                .zxing_finder_zxing_viewfinder_laser_duration, DEFAULT_LASER_DURATION);
 
         attributes.recycle();
 
@@ -124,15 +134,24 @@ public class ViewfinderView extends View {
     }
 
     protected void refreshSizes() {
-        if(cameraPreview == null) {
+        if (cameraPreview == null) {
             return;
         }
         Rect framingRect = cameraPreview.getFramingRect();
         Rect previewFramingRect = cameraPreview.getPreviewFramingRect();
-        if(framingRect != null && previewFramingRect != null) {
+        if (framingRect != null && previewFramingRect != null) {
             this.framingRect = framingRect;
             this.previewFramingRect = previewFramingRect;
         }
+    }
+
+    public void enableLaserAnimation(boolean isEnabled) {
+        mIsLaserAnimationEnabled = isEnabled;
+    }
+
+    private int dp2Px(final float dp) {
+        final float scale = Resources.getSystem().getDisplayMetrics().density;
+        return (int) (dp * scale + 0.5F);
     }
 
     @SuppressLint("DrawAllocation")
@@ -156,18 +175,59 @@ public class ViewfinderView extends View {
         canvas.drawRect(frame.right + 1, frame.top, width, frame.bottom + 1, paint);
         canvas.drawRect(0, frame.bottom + 1, width, height, paint);
 
+        int offset = dp2Px(2.5F);
+        int length = dp2Px(20);
+        paint.setColor(Color.WHITE);
+        paint.setStrokeWidth(dp2Px(5));
+        // draw corner rect
+        // left top
+        canvas.drawLine(frame.left, frame.top + offset, frame.left + length, frame.top + offset, paint);
+        canvas.drawLine(frame.left + offset, frame.top, frame.left + offset, frame.top + length, paint);
+
+        // right top
+        canvas.drawLine(frame.right - length, frame.top + offset, frame.right, frame.top + offset, paint);
+        canvas.drawLine(frame.right - offset, frame.top, frame.right - offset, frame.top + length, paint);
+
+        // left bottom
+        canvas.drawLine(frame.left, frame.bottom - offset, frame.left + length, frame.bottom - offset, paint);
+        canvas.drawLine(frame.left + offset, frame.bottom - length, frame.left + offset, frame.bottom, paint);
+
+        // right bottom
+        canvas.drawLine(frame.right - length, frame.bottom - offset, frame.right, frame.bottom - offset, paint);
+        canvas.drawLine(frame.right - offset, frame.bottom - length, frame.right - offset, frame.bottom, paint);
+
+        paint.setStrokeWidth(dp2Px(0.5F));
+        canvas.drawLine(frame.left, frame.top, frame.left, frame.bottom, paint);
+        canvas.drawLine(frame.left, frame.top, frame.right, frame.top, paint);
+        canvas.drawLine(frame.right, frame.top, frame.right, frame.bottom, paint);
+        canvas.drawLine(frame.left, frame.bottom, frame.right, frame.bottom, paint);
+
         if (resultBitmap != null) {
             // Draw the opaque result bitmap over the scanning rectangle
             paint.setAlpha(CURRENT_POINT_OPACITY);
             canvas.drawBitmap(resultBitmap, null, frame, paint);
         } else {
-
-            // Draw a red "laser scanner" line through the middle to show decoding is active
-            paint.setColor(laserColor);
             paint.setAlpha(SCANNER_ALPHA[scannerAlpha]);
             scannerAlpha = (scannerAlpha + 1) % SCANNER_ALPHA.length;
             int middle = frame.height() / 2 + frame.top;
-            canvas.drawRect(frame.left + 2, middle - 1, frame.right - 1, middle + 2, paint);
+            laserDrawable.setBounds(frame.left + 2, middle - 1, frame.right - 1, middle + 2);
+
+            if (mIsLaserAnimationEnabled) {
+                if (mStartTime == -1) {
+                    mStartTime = SystemClock.uptimeMillis();
+                }
+
+                long curTime = SystemClock.uptimeMillis();
+                float range = (curTime - mStartTime) / (float) mDuration;
+                if (range - 1 >= 0) {
+                    mStartTime = -1;
+                    range = 0;
+                }
+                canvas.translate(0, -(frame.height() / 2) + frame.height() * range);
+                laserDrawable.draw(canvas);
+            } else {
+                laserDrawable.draw(canvas);
+            }
 
             float scaleX = frame.width() / (float) previewFrame.width();
             float scaleY = frame.height() / (float) previewFrame.height();
