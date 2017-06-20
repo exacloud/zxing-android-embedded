@@ -175,10 +175,10 @@ public class ViewfinderView extends View {
         canvas.drawRect(frame.right + 1, frame.top, width, frame.bottom + 1, paint);
         canvas.drawRect(0, frame.bottom + 1, width, height, paint);
 
-        int offset = dp2Px(2.5F);
+        int offset = dp2Px(1.5F);
         int length = dp2Px(20);
         paint.setColor(Color.WHITE);
-        paint.setStrokeWidth(dp2Px(5));
+        paint.setStrokeWidth(dp2Px(3));
         // draw corner rect
         // left top
         canvas.drawLine(frame.left, frame.top + offset, frame.left + length, frame.top + offset, paint);
