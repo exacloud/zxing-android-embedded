@@ -24,6 +24,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.SystemClock;
 import android.util.AttributeSet;
@@ -47,6 +48,7 @@ public class ViewfinderView extends View {
      * default laser scan duration, from top to bottom, milliseconds
      */
     public static final int DEFAULT_LASER_DURATION = 4000;
+    public static final String DEFAULT_LASER_COLOR = "#FFCC0000";
     protected static final int[] SCANNER_ALPHA = {0, 64, 128, 192, 255, 192, 128, 64};
     protected static final long ANIMATION_DELAY = 10L;
     protected static final int CURRENT_POINT_OPACITY = 0xA0;
@@ -89,6 +91,9 @@ public class ViewfinderView extends View {
                 resources.getColor(R.color.zxing_result_view));
         this.laserDrawable = attributes.getDrawable(R.styleable
                 .zxing_finder_zxing_viewfinder_laser);
+        if (this.laserDrawable == null) {
+            this.laserDrawable = new ColorDrawable(Color.parseColor(DEFAULT_LASER_COLOR));
+        }
         this.resultPointColor = attributes.getColor(R.styleable
                         .zxing_finder_zxing_possible_result_points,
                 resources.getColor(R.color.zxing_possible_result_points));
@@ -175,10 +180,10 @@ public class ViewfinderView extends View {
         canvas.drawRect(frame.right + 1, frame.top, width, frame.bottom + 1, paint);
         canvas.drawRect(0, frame.bottom + 1, width, height, paint);
 
-        int offset = dp2Px(2.5F);
+        int offset = dp2Px(1.5F);
         int length = dp2Px(20);
         paint.setColor(Color.WHITE);
-        paint.setStrokeWidth(dp2Px(5));
+        paint.setStrokeWidth(dp2Px(3));
         // draw corner rect
         // left top
         canvas.drawLine(frame.left, frame.top + offset, frame.left + length, frame.top + offset, paint);
