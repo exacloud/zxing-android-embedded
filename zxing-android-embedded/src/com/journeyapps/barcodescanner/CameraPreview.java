@@ -26,8 +26,8 @@ import com.journeyapps.barcodescanner.camera.CameraInstance;
 import com.journeyapps.barcodescanner.camera.CameraSettings;
 import com.journeyapps.barcodescanner.camera.CameraSurface;
 import com.journeyapps.barcodescanner.camera.CenterCropStrategy;
-import com.journeyapps.barcodescanner.camera.FitCenterStrategy;
 import com.journeyapps.barcodescanner.camera.DisplayConfiguration;
+import com.journeyapps.barcodescanner.camera.FitCenterStrategy;
 import com.journeyapps.barcodescanner.camera.FitXYStrategy;
 import com.journeyapps.barcodescanner.camera.PreviewScalingStrategy;
 
@@ -273,9 +273,13 @@ public class CameraPreview extends ViewGroup {
 
         int framingRectWidth = (int) styledAttributes.getDimension(R.styleable.zxing_camera_preview_zxing_framing_rect_width, -1);
         int framingRectHeight = (int) styledAttributes.getDimension(R.styleable.zxing_camera_preview_zxing_framing_rect_height, -1);
-
+        int framingRectMarginTop = (int) styledAttributes.getDimension(R.styleable.zxing_camera_preview_zxing_framing_rect_marginTop, -1);
         if (framingRectWidth > 0 && framingRectHeight > 0) {
-            this.framingRectSize = new Size(framingRectWidth, framingRectHeight);
+            if (framingRectMarginTop >= 0) {
+                this.framingRectSize = new Size(framingRectWidth, framingRectHeight, framingRectMarginTop);
+            } else {
+                this.framingRectSize = new Size(framingRectWidth, framingRectHeight);
+            }
         }
 
         this.useTextureView = styledAttributes.getBoolean(R.styleable.zxing_camera_preview_zxing_use_texture_view, true);
@@ -818,13 +822,17 @@ public class CameraPreview extends ViewGroup {
     protected Rect calculateFramingRect(Rect container, Rect surface) {
         // intersection is the part of the container that is used for the preview
         Rect intersection = new Rect(container);
-        boolean intersects = intersection.intersect(surface);
 
         if(framingRectSize != null) {
             // Specific size is specified. Make sure it's not larger than the container or surface.
             int horizontalMargin = Math.max(0, (intersection.width() - framingRectSize.width) / 2);
-            int verticalMargin = Math.max(0, (intersection.height() - framingRectSize.height) / 2);
-            intersection.inset(horizontalMargin, verticalMargin);
+            int verticalMargin;
+            if (framingRectSize.marginTop >= 0) {
+                verticalMargin = framingRectSize.marginTop;
+            } else {
+                verticalMargin = Math.max(0, (intersection.height() - framingRectSize.height) / 2);
+            }
+            intersection.set(horizontalMargin, verticalMargin, horizontalMargin + framingRectSize.width, verticalMargin + framingRectSize.height);
             return intersection;
         }
         // margin as 10% (default) of the smaller of width, height

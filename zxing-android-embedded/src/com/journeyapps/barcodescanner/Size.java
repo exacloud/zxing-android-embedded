@@ -8,10 +8,16 @@ import android.support.annotation.NonNull;
 public class Size implements Comparable<Size> {
     public final int width;
     public final int height;
+    public final int marginTop;
 
-    public Size(int width, int height) {
+    public Size(int width, int height, int marginTop) {
         this.width = width;
         this.height = height;
+        this.marginTop = marginTop;
+    }
+
+    public Size(int width, int height) {
+        this(width, height, -1);
     }
 
     /**
